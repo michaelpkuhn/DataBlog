@@ -1,0 +1,48 @@
+---
+output: html_document
+format:
+  html:
+    minimal: true
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+
+library(tidyverse)
+library(plotly)
+library(gapminder)
+
+```
+
+
+
+
+```{r}
+# Loading
+data(mtcars)
+# Print the first 6 rows
+head(mtcars, 6)
+```
+
+```{r}
+
+ggplot(mtcars) +
+  geom_point(aes(mpg, hp))
+
+```
+
+```{r}
+
+p <- gapminder %>%
+  filter(year==1977) %>%
+  ggplot( aes(gdpPercap, lifeExp, size = pop, color=continent)) +
+  geom_point() +
+  theme_bw()
+
+ggplotly(p) %>% as_widget()
+
+```
+
