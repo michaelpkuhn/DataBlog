@@ -1,0 +1,33 @@
+project:
+  type: website
+  output-dir: docs
+  preview:
+    port: 4200
+
+website:
+  title: "Data Blog"
+  navbar:
+    search: false
+    left:
+      - text: "Home"
+        href: index.qmd
+  page-footer: 
+    left: "Michael Kuhn © 2025"
+    right:
+      - icon: link-45deg
+        href: https://michaelpkuhn.com
+        target: _blank
+      - icon: github
+        href: https://github.com/michaelpkuhn
+        target: _blank
+      - icon: linkedin
+        href: https://www.linkedin.com/in/mickuhn/
+        target: _blank
+  
+format:
+  html:
+    theme: 
+      - cosmo
+      - brand
+    css: styles.css
+    toc: true
