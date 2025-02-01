@@ -1,0 +1,24 @@
+---
+title: "Home"
+listing:
+    id: data-blog-listings
+    contents: posts
+    sort: "date desc"
+    type: default
+    categories: true
+    sort-ui: true
+    filter-ui: true
+    page-size: 5
+page-layout: full
+title-block-banner: false
+---
+
+# Welcome to my blog
+
+I'm Michael. I recently graduated with a Masters of Science in Civic Analytics from UIC. I am passionate about civic technology projects and urbanism. I live in Avondale with my wife Becky and cat Malbec.
+
+During my masters program, we often produced data projects using RMarkdown or Quarto. With my newly attained free time, I hope to continue developing my data analysis skills in this blog format.
+
+## Blog Posts
+
+:::{#data-blog-listings}
