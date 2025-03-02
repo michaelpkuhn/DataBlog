@@ -2,7 +2,7 @@
 title: "Home"
 listing:
     id: data-blog-listings
-    contents: posts
+    contents: "posts/*/post.qmd"
     sort: "date desc"
     type: default
     categories: true

@@ -12,5 +12,33 @@
     "title": "Home",
     "section": "",
     "text": "No matching items"
+  },
+  {
+    "objectID": "posts/Cartogram/post.html",
+    "href": "posts/Cartogram/post.html",
+    "title": "Making a Cartogram in Quarto",
+    "section": "",
+    "text": "In my previous post, I used a cartogram as my visualization.\nThis post is a technical walkthrough of challenges and final implementation for a cartogram in Quarto.\npoverty_cd_s1701 &lt;- get_acs(geography = \"congressional district\", \n        table = 'S1701',\n        year = 2023,\n        geometry = TRUE,\n        cache_table = TRUE)\n\npoverty_cd_s1701 %&gt;% \n  glimpse()\n\nv2023 &lt;- load_variables(2023, \"acs5/subject\", cache = TRUE)\n\nv2023 %&gt;% glimpse()\n\nv2023 %&gt;% \n  filter(name == 'S1701_C01_001') %&gt;% \n  glimpse()\n\ndata(\"fips_codes\")\n\nstates &lt;- fips_codes %&gt;% \n  select(state, state_code) %&gt;% \n  distinct()\n\npoverty_cd_s1701_labels &lt;- poverty_cd_s1701 %&gt;% \n  left_join(v2023,\n            by = c(\"variable\" = \"name\")) %&gt;% \n  mutate(state_code = substr(GEOID, 1, 2)) %&gt;% \n  left_join(states)\n\npoverty_cd_s1701_labels %&gt;% \n  glimpse()"
+  },
+  {
+    "objectID": "posts/Cartogram/post.html#leaflet",
+    "href": "posts/Cartogram/post.html#leaflet",
+    "title": "Making a Cartogram in Quarto",
+    "section": "Leaflet",
+    "text": "Leaflet"
+  },
+  {
+    "objectID": "posts/Cartogram/post.html#r2d3",
+    "href": "posts/Cartogram/post.html#r2d3",
+    "title": "Making a Cartogram in Quarto",
+    "section": "r2d3",
+    "text": "r2d3\n\nr2d3(data=c(0.3, 0.6, 0.8, 0.95, 0.40, 0.20), script = \"barchart.js\")\n\n\nr2d3(data = jsonlite::read_json(\"data/original/us.json\"), d3_version = 3, dependencies = \"topojson.min.js\", script = \"cartogram.js\")\n\n\nr2d3(data=c(0.3, 0.6, 0.8, 0.95, 0.40, 0.20), script = \"hexbinmap.js\", dependencies = htmltools::htmlDependencies())"
+  },
+  {
+    "objectID": "posts/Cartogram/post.html#observable",
+    "href": "posts/Cartogram/post.html#observable",
+    "title": "Making a Cartogram in Quarto",
+    "section": "Observable",
+    "text": "Observable\nhttps://intro2r.library.duke.edu/interactive.html\nThis does not work in RStudio, which is great for testing.\nAlso, quarto preview cannot run on a single file in this project directory structure.\nIssue with path in separate drive\nOJS code chunk required for ojs_define function\n\npenguin_path &lt;- here('posts', 'Cartogram', 'data', 'original', 'palmer-penguins.csv')\n\npenguins_csv &lt;- read_csv(penguin_path)\n\nRows: 344 Columns: 8\n── Column specification ────────────────────────────────────────────────────────\nDelimiter: \",\"\nchr (3): species, island, sex\ndbl (5): bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, year\n\nℹ Use `spec()` to retrieve the full column specification for this data.\nℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.\n\nojs_define(data = penguins_csv)\n\n\nviewof bill_length_min = Inputs.range(\n  [32, 50],\n  {value: 35, step: 1, label: \"Bill length (min):\"}\n)\nviewof islands = Inputs.checkbox(\n  [\"Torgersen\", \"Biscoe\", \"Dream\"],\n  { value: [\"Torgersen\", \"Biscoe\"],\n    label: \"Islands:\"\n  }\n)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nfiltered = transpose(data).filter(function(penguin) {\n  return bill_length_min &lt; penguin.bill_length_mm &&\n         islands.includes(penguin.island);\n})\n\n\n\n\n\n\n\nPlot.rectY(filtered, \n  Plot.binX(\n    {y: \"count\"}, \n    {x: \"body_mass_g\", fill: \"species\", thresholds: 20}\n  ))\n  .plot({\n    facet: {\n      data: filtered,\n      x: \"sex\",\n      y: \"species\",\n      marginRight: 80\n    },\n    marks: [\n      Plot.frame(),\n    ]\n  }\n)"
   }
 ]

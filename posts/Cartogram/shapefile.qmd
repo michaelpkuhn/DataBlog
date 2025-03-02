@@ -1,0 +1,253 @@
+---
+draft: true
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r}
+#| include: false
+#| eval: true
+
+library(tidyverse)
+library(tidycensus)
+library(tigris)
+library(r2d3)
+library(leaflet)
+library(sf)
+
+library(dotenv)
+library(here)
+
+here::i_am('posts/Cartogram/shapefile.qmd')
+
+load_dot_env(file = ".env")
+
+census_api_key(Sys.getenv('CENSUS_KEY'))
+
+options(tigris_use_cache = TRUE)
+
+```
+
+In my previous post, I used a cartogram as my visualization.
+
+This post is a technical walkthrough of challenges and final implementation for a cartogram in Quarto.
+
+
+
+
+```{r}
+
+poverty_cd_s1701 <- get_acs(geography = "congressional district", 
+        table = 'S1701',
+        year = 2023,
+        geometry = TRUE,
+        cache_table = TRUE)
+
+poverty_cd_s1701 %>% 
+  glimpse()
+
+v2023 <- load_variables(2023, "acs5/subject", cache = TRUE)
+
+v2023 %>% glimpse()
+
+v2023 %>% 
+  filter(name == 'S1701_C01_001') %>% 
+  glimpse()
+
+data("fips_codes")
+
+states <- fips_codes %>% 
+  select(state, state_code) %>% 
+  distinct()
+
+poverty_cd_s1701_labels <- poverty_cd_s1701 %>% 
+  left_join(v2023,
+            by = c("variable" = "name")) %>% 
+  mutate(state_code = substr(GEOID, 1, 2)) %>% 
+  left_join(states)
+
+poverty_cd_s1701_labels %>% 
+  glimpse()
+```
+
+# Approaches
+
+# geom_sf
+
+```{r}
+
+
+v2023 %>% 
+  filter(name == 'S1701_C03_001') %>% 
+  glimpse()
+
+
+poverty_cd_s1701_labels %>% 
+  filter(variable == 'S1701_C03_001') %>% 
+  shift_geometry() %>% 
+  ggplot(aes(fill = estimate)) + 
+  geom_sf()
+
+```
+
+
+```{r}
+
+poverty_cd_s1701_labels %>% 
+  filter(variable == 'S1701_C03_001',
+         state != 'PR') %>% 
+  shift_geometry() %>% 
+  ggplot(aes(fill = estimate)) + 
+  geom_sf() + 
+  scale_fill_distiller(palette = "RdPu", 
+                       direction = 1) + 
+  labs(title = "Poverty Rate By Congressional District",
+       caption = "Data source: 2023 5-year ACS, US Census Bureau",
+       fill = "ACS estimate") + 
+  theme_void()
+
+```
+
+
+```{r}
+#"C:\Users\mkuhn\Documents\projects\personal\DataBlog\posts\MedicaidFundingImpact\data\original\HexCDv31\HexCDv31.shp"
+# library(geojsonsf)
+library(geojsonio)
+
+
+pov_rate_cd <-
+  poverty_cd_s1701_labels %>% 
+    filter(variable == 'S1701_C03_001',
+           state != 'PR') %>%
+    st_drop_geometry() %>% 
+  tibble()
+
+cd_hex_path = here('posts', 'Cartogram', 'data', 'original', 'HexCDv31', 'HexCDv31.shp')
+
+cd_hex <-
+  sf::read_sf(cd_hex_path)
+
+cd_hex_pov <-
+  cd_hex %>% 
+    left_join(pov_rate_cd,
+              by = 'GEOID')
+
+
+cd_hex_geo <- geojson_json(cd_hex_pov) 
+
+write_file(cd_hex_geo, 'cd_hex_geo_pov.json')
+
+
+```
+
+
+```{r}
+# cd_hex_pov %>% 
+#   pull(estimate) %>%# log() %>% 
+#   hist()
+
+g <- cd_hex_pov$estimate
+m <- mean(g)
+std <- sqrt(var(g))
+
+hist(g, density=20, breaks=20, prob=TRUE, 
+     xlab="x-variable", ylim=c(0, 2), 
+     main="normal curve over histogram")
+
+curve(dnorm(x, mean=m, sd=std), 
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
+```
+
+```{r}
+g <- cd_hex_pov$estimate %>% log()
+m <- mean(g)
+std <- sqrt(var(g))
+
+hist(g, density=20, breaks=20, prob=TRUE, 
+     xlab="x-variable", ylim=c(0, 2), 
+     main="normal curve over histogram")
+
+curve(dnorm(x, mean=m, sd=std), 
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
+```
+
+
+## Observable
+https://intro2r.library.duke.edu/interactive.html
+
+This does not work in RStudio, which is great for testing.
+
+Also, quarto preview cannot run on a single file in this project directory structure.
+
+Issue with path in separate drive
+
+OJS code chunk required for ojs_define function
+
+```{r}
+#| eval: true
+
+penguin_path <- here('posts', 'Cartogram', 'data', 'original', 'palmer-penguins.csv')
+
+penguins_csv <- read_csv(penguin_path)
+
+ojs_define(data = penguins_csv)
+
+```
+
+
+```{ojs}
+//| eval: true
+
+
+// needs to be a string literal
+//data = FileAttachment(penguin_path).csv({ typed: true })
+
+viewof bill_length_min = Inputs.range(
+  [32, 50],
+  {value: 35, step: 1, label: "Bill length (min):"}
+)
+viewof islands = Inputs.checkbox(
+  ["Torgersen", "Biscoe", "Dream"],
+  { value: ["Torgersen", "Biscoe"],
+    label: "Islands:"
+  }
+)
+```
+
+```{ojs}
+//| eval: true
+
+filtered = transpose(data).filter(function(penguin) {
+  return bill_length_min < penguin.bill_length_mm &&
+         islands.includes(penguin.island);
+})
+```
+
+```{ojs}
+//| eval: true
+
+Plot.rectY(filtered, 
+  Plot.binX(
+    {y: "count"}, 
+    {x: "body_mass_g", fill: "species", thresholds: 20}
+  ))
+  .plot({
+    facet: {
+      data: filtered,
+      x: "sex",
+      y: "species",
+      marginRight: 80
+    },
+    marks: [
+      Plot.frame(),
+    ]
+  }
+)
+```
+
+# Shape file
+
+https://docs.google.com/spreadsheets/d/13XkF59JKzvw4SeSq5mbgIFrJfYjK4amg9JoQE5e9grQ/edit?gid=1250379179#gid=1250379179
+
