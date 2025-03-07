@@ -134,13 +134,146 @@ cd_hex_pov <-
     left_join(pov_rate_cd,
               by = 'GEOID')
 
+# 
+# cd_hex_geo <- geojson_json(cd_hex_pov) 
+# 
+# write_file(cd_hex_geo, 'cd_hex_geo_pov.json')
 
-cd_hex_geo <- geojson_json(cd_hex_pov) 
+```
 
-write_file(cd_hex_geo, 'cd_hex_geo_pov.json')
+```{r}
+
+cd_hex_pov
+
+legis_path <- here('posts', 'Cartogram', 'data', 'original', 'legislators-current.csv')
+
+legis_tb <- read_csv(legis_path,
+                     col_types = cols(.default = col_character()))
+
+congress_tb <- legis_tb %>% 
+  filter(!is.na(district)) %>% 
+  mutate(district = ifelse(district == '0', '1', district)) 
+
+congress_tb %>% 
+  filter(state == "AK")
+
+```
+
+
+```{r}
+
+c_results_path <- here('posts', 'Cartogram', 'data', 'copy', 'election_results_2024.xlsx')
+
+c_results_tb <- readxl::read_excel(c_results_path) %>% 
+  select(State, District, Margin)
+
+```
+
+
+```{r}
+
+p_results_path <- here('posts', 'Cartogram', 'data', 'copy', '2024 Pres by CD.xlsx')
+
+p_results_tb <- readxl::read_excel(p_results_path) %>% 
+  mutate(District = as.character(District)) %>% 
+  select(Winner, `Trump Margin %`, State, District)
+
+```
+
+
+```{r}
+
+enroll_effect_path <- here('posts', 'Cartogram', 'data', 'original', 'data-s4Nmd.csv')
+
+enroll_effect_tb <- read_csv(enroll_effect_path)
+
+toPercentage <- function(str) {
+  remove_pct <- sub("%", "", str)
+  pctNumber <- as.numeric(remove_pct)
+  
+  pctNumber / 100
+}
+
+enroll_effect_tb2 <- 
+  enroll_effect_tb %>% 
+    mutate(enrollment_chg_pct = 
+             toPercentage(`Percent Change in Enrollment Under Per Capita Cap`),
+           expansion_chg_pct =
+             toPercentage(`Percent Change in Enrollment Under Per Capita Cap and Elimination of ACA Expansion Match Rate` )) %>% 
+    select(State, enrollment_chg_pct, expansion_chg_pct)
+
+```
+
+
+```{r}
+
+cd_hex <-
+  cd_hex_pov %>% 
+    mutate(CDLABEL = ifelse(CDLABEL == STATEAB, "1", CDLABEL)) %>% 
+    left_join(congress_tb,
+              by = c("CDLABEL" = "district",
+                     "state"),
+              suffix = c('_cd', '_l')) %>% 
+    left_join(c_results_tb,
+              by = c("CDLABEL" = "District",
+                     "state" = "State")) %>% 
+    left_join(p_results_tb,
+              by = c("CDLABEL" = "District",
+                     "state" = "State")) %>% 
+  left_join(enroll_effect_tb2,
+            by = c("STATENAME" = "State")) %>%
+  mutate(enrollment_chg = estimated_medicaid * enrollment_chg_pct,
+         expansion_chg = estimated_medicaid * expansion_chg_pct)
+
+analysis <-
+  cd_hex %>% 
+    st_drop_geometry() %>% 
+    tibble()
+```
+
+```{r}
+analysis %>% 
+  select(GEOID, STATEAB, STATENAME, CDLABEL, NAME, population, poverty_n, 
+         State_Expanded_Medicaid, Total_Medicaid_Enrollment, estimated_medicaid,
+         full_name, party, Margin, Winner, `Trump Margin %`, enrollment_chg_pct,
+         expansion_chg_pct)  %>% 
+  view()
+
 
 
 ```
+
+
+```{r}
+cd_hex_geo <- geojson_json(cd_hex) 
+
+cd_hex_out_path <- here('posts', 'Cartogram', 'data', 'copy', 'cd_hex_geo_20250303_4.json')
+
+write_file(cd_hex_geo, cd_hex_out_path)
+
+```
+
+
+
+
+states
+```{r}
+st_hex_path = here('posts', 'Cartogram', 'data', 'original', 'HexStv30', 'HexStv30.shp')
+
+st_hex <-
+  sf::read_sf(st_hex_path)
+
+st_hex_geo <- geojson_json(st_hex) 
+
+
+st_hex_path_out = here('posts', 'Cartogram', 'data', 'copy', 'st_hex_geo.json')
+
+
+write_file(st_hex_geo, st_hex_path_out)
+
+```
+
+
 
 
 ```{r}

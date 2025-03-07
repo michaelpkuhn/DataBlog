@@ -26,7 +26,7 @@ library(modelrlibrary(tidycensus)
 library(tigris)
 library(skimr)
 library(dotenv)
-library(leaflet)
+library(geojsonio)
 library(here)
 load_dot_env(file = here::here(".env"))
 
@@ -36,7 +36,51 @@ options(tigris_use_cache = TRUE)
 
 ```
 
+
+# Background
+
+Trump budget threatens medicaid funding.
+
 Medicaid is the health insurance program for people with limited resources.
+
+
+
+## Medicaid Funding
+
+Federal funding operates through a match at a rate, the federal medical assistance percentage or "FMAP",  that is as low as 50% for states with higher per capita income and as high as 77% for states with lower per capita income.
+
+Additionally, ACA Medicaid expansion states receive a 90% FMAP for qualifying recipients.
+
+The consequence for a state's budget depend not only the number of enrollees in a state, but also on the FMAP rate, which again is higher for low income states.
+
+https://www.kff.org/medicaid/state-indicator/medicaid-expenditures-as-a-percent-of-total-state-expenditures-by-fund/?currentTimeframe=0&sortModel=%7B%22colId%22:%22Total%22,%22sort%22:%22desc%22%7D
+
+figure 4 - budget impact if maintains
+
+
+
+## State Options
+
+If medicaid is cut, states may reduce the Medicaid eligibility or increase their own funding to maintain current enrollment levels.
+
+This post will extend the analysis from Kaiser Family Foundation to the congressional district level.
+
+
+
+For more detail on medicaid funding at the state level, I recommend the following articles from KFF (formerly the Kaiser Family Foundation).
+
+https://www.kff.org/medicaid/issue-brief/a-medicaid-per-capita-cap-state-by-state-estimates/
+
+https://www.kff.org/medicaid/issue-brief/medicaid-financing-the-basics/
+
+# District Level Mapping
+
+There is not publicly available data for medicaid enrollment at the congressional district level. 
+
+Effects will vary based on the policy details if and when implemented. state specific medicaid eligibility criteria and medicaid expansion enrollment.  
+
+
+
 
 It is X percent of the federal budget. 
 
@@ -45,6 +89,14 @@ Income from census
 walk down enrollment state level
 
 https://data.medicaid.gov/dataset/6165f45b-ca93-5bb5-9d06-db29c692a360#data-table
+
+
+
+https://www.realclearpolitics.com/elections/live_results/2024/house/
+
+https://guides.loc.gov/election-statistics/presidential-elections
+
+https://centerforpolitics.org/crystalball/the-2024-crossover-house-seats-overall-number-remains-low-with-few-harris-district-republicans/
 
 ## Medicaid Enrollment 
 
@@ -311,111 +363,12 @@ enrollment_model <-
      data = state_totals) 
 ```
 
-
-
 ```{r}
-
-enrollment_model3 <-
-  lm(I(Total_Medicaid_Enrollment / population) ~ State_Expanded_Medicaid + log(population) + I(poverty_n / population), 
-   data = state_totals)
-
-
-enrollment_model3 %>% summary()
-```
-
-```{r}
-enrollment_model2 <-
-  lm(log(Total_Medicaid_Enrollment) ~ State_Expanded_Medicaid + log(population) + I(poverty_n / population), 
-     data = state_totals) 
-
-enrollment_model2 %>% 
-    summary()
-
-```
-
-
-```{r}
-library(lme4)
-
-# can't do bc only one observation per state
-lmer(I(Total_Medicaid_Enrollment / population) ~ State_Expanded_Medicaid + log(population) + I(poverty_n / population) + (1 | state), 
-     data = state_totals) %>% 
-  summary()
-
-# can't do bc only one observation per state
-lmer(I(Total_Medicaid_Enrollment / population) ~ State_Expanded_Medicaid + log(population) + I(poverty_n / population) + (1 | state), 
-     data = state_totals) %>% 
-  summary()
-
-```
-
-```{r}
-
-state_totals
-
-cd_state_totals <-
-  cd_totals %>% 
-    group_by(state) %>% 
-    mutate(state_pop = sum(population),
-           state_pov = sum(poverty_n),
-           cd_pct = population / state_pop)
-
-# total medicaid enrollment is at the state level
-enrollment_model4 <-
-  lm(I(Total_Medicaid_Enrollment / state_pop) ~ State_Expanded_Medicaid + cd_pct + I(poverty_n / population) + state, 
-   data = cd_state_totals)
-
-
-enrollment_model4 %>% summary()
-```
-
-
-```{r}
-# need more poverty influence
-# total medicaid enrollment is at the state level
-enrollment_model5 <-
-  lm(I(Total_Medicaid_Enrollment / state_pop) ~ State_Expanded_Medicaid + cd_pct + I(state_pov / state_pop) + state, 
-   data = cd_state_totals)
-
-
-enrollment_model5 %>% summary()
-```
-
-
-```{r}
-library(lme4)
-
-# can't do bc only one observation per state
-lmer_model <- lmer(I(Total_Medicaid_Enrollment / state_pop) ~ State_Expanded_Medicaid + I(poverty_n / population) + I(state_pov / state_pop)  + (1 | state), 
-     data = cd_state_totals) 
-
-lmer_model %>% 
-  summary()
-
-```
-
-
-```{r}
-
-# Fit a regression model to estimate the importance of poverty vs. population
-medicaid_model <- lm(Total_Medicaid_Enrollment ~ state_pov + state_pop, data = cd_state_totals)
-
-# Extract coefficients
-beta_poverty <- coef(medicaid_model)["state_pov"]
-beta_population <- coef(medicaid_model)["state_pop"]
-
-# Compute alpha as the relative effect of population compared to poverty
-alpha <- beta_population / beta_poverty
-
-
-# Define weight (adjust α as needed, e.g., 0.3 to give some weight to population)
-alpha <- 0.0
-
 # Compute district-level Medicaid estimates
 district_data <- cd_totals %>%
   group_by(state) %>%
   mutate(
-    weight = (poverty_n + alpha * population) / sum(poverty_n + alpha * population),
+    weight = (poverty_n * population) / sum(poverty_n * population), # CD poverty share 
     estimated_medicaid = weight * Total_Medicaid_Enrollment
   ) %>%
   ungroup()
@@ -423,45 +376,6 @@ district_data <- cd_totals %>%
 # View results
 head(district_data)
 ```
-
-
-
-Based on poverty and population levels, we want to predict the number of medicaid enrollees in a congressional district, accounting for state-level factors.
-
-
-```{r}
-
-# state p
-state_totals %>% 
-
-
-```
-
-Does this work?
-
-```{r}
-cd_enrollment <-
-  cd_totals %>% 
-    add_predictions(enrollment_model, "enrollment") 
-
-
-cd_enrollment %>% 
-  glimpse()
-
-# some districts have 0 population, there are not confirmed districts whatever that means
-cd_enrollment %>% 
-  skim()
-
-
-cd_enrollment %>% 
-  group_by(state) %>% 
-  summarize(state_enrollment_actual = max(Total_Medicaid_Enrollment),
-            state_enrollment_pred = sum(enrollment)) %>% 
-  mutate(difference = state_enrollment_pred - state_enrollment_actual) %>% 
-  summary()
-
-```
-
 
 ```{r}
 district_data
@@ -564,6 +478,31 @@ cd_enrollment_geom %>%
        fill = "Estimate") + 
   theme_void()
 ```
+
+## GeoJSON
+
+```{r}
+
+
+cd_hex_path = here('posts', 'MedicaidFundingImpact', 'data', 'original', 'HexCDv31', 'HexCDv31.shp')
+
+cd_hex <-
+  sf::read_sf(cd_hex_path)
+
+cd_hex_pov <-
+  cd_hex %>% 
+    left_join(district_data,
+              by = 'GEOID')
+
+
+cd_hex_geo <- geojson_json(cd_hex_pov) 
+
+geo_path <- here('posts', 'MedicaidFundingImpact', 'data', 'copy', 'cd_hex_geo_enrollment.json')
+
+write_file(cd_hex_geo, geo_path)
+
+```
+
 
 
 
